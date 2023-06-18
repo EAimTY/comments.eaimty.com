@@ -1,4 +1,5 @@
 export interface Env {
+  REPO: string;
   OAUTH_APP_CLIENT_ID: string;
   OAUTH_APP_CLIENT_SECRET: string;
 }
@@ -45,31 +46,76 @@ async function login(req: Request, env: Env): Promise<Response> {
   return new Response(JSON.stringify(tokenObj), { status: 400 });
 }
 
-async function getComments(req: Request): Promise<Response> {
-  return new Response('get comments');
+async function getComments(req: Request, env: Env): Promise<Response> {
+  const url = new URL(req.url);
+
+  const issueId = url.searchParams.get('issue_id');
+  if (issueId === null) {
+    return new Response(JSON.stringify({ error: 'missing parameter \'issue_id\'' }), { status: 400 });
+  }
+
+  const getCommentsUrl = `https://api.github.com/repos/${env.REPO}/issues/${issueId}/comments`;
+
+  const method = 'GET';
+
+  const headers = new Headers();
+  headers.append('Accept', 'application/vnd.github+json');
+  headers.append('User-Agent', 'comments.eaimty.com');
+  headers.append('X-GitHub-Api-Version', '2022-11-28');
+
+  const token = url.searchParams.get('github_access_token');
+  if (token) {
+    headers.append('Authorization', `Bearer ${token}`);
+  }
+
+  return fetch(getCommentsUrl, { method, headers });
 }
 
-async function postComment(req: Request): Promise<Response> {
-  return new Response('post comments');
+async function postComment(req: Request, env: Env): Promise<Response> {
+  const url = new URL(req.url);
+
+  const issueId = url.searchParams.get('issue_id');
+  if (issueId === null) {
+    return new Response(JSON.stringify({ error: 'missing parameter \'issue_id\'' }), { status: 400 });
+  }
+
+  const token = url.searchParams.get('github_access_token');
+  if (token === null) {
+    return new Response(JSON.stringify({ error: 'missing parameter \'github_access_token\'' }), { status: 400 });
+  }
+
+  const postCommentUrl = `https://api.github.com/repos/${env.REPO}/issues/${issueId}/comments`;
+
+  const method = 'POST';
+
+  const headers = new Headers();
+  headers.append('Accept', 'application/vnd.github+json');
+  headers.append('User-Agent', 'comments.eaimty.com');
+  headers.append('X-GitHub-Api-Version', '2022-11-28');
+  headers.append('Authorization', `Bearer ${token}`);
+
+  const { body } = req;
+
+  return fetch(postCommentUrl, { method, headers, body });
 }
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const { method } = req;
     const path = new URL(req.url).pathname;
+
     switch (true) {
       case method === 'GET' && path === '/login':
         return login(req, env);
 
       case method === 'GET' && path === '/comments':
-        return getComments(req);
+        return getComments(req, env);
 
       case method === 'POST' && path === '/comments':
-        return postComment(req);
+        return postComment(req, env);
 
       default:
+        return new Response(null, { status: 404 });
     }
-
-    return new Response(null, { status: 404 });
   },
 };
