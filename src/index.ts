@@ -30,20 +30,16 @@ async function login(req: Request, env: Env): Promise<Response> {
   body.append('client_secret', env.OAUTH_APP_CLIENT_SECRET);
   body.append('code', code);
 
-  const tokenObj = await fetch(getTokenUrl, {
-    method,
-    headers,
-    body,
-  }).then((res) => res.json() as any);
+  const res = fetch(getTokenUrl, { method, headers, body });
 
-  const token = tokenObj.access_token;
-  if (token) {
+  if (await res.then((data) => data.status === 200)) {
+    const token = await res.then((data) => data.json()).then((data) => data.access_token);
     const redirect = new URL(redirectUri);
     redirect.searchParams.append('github_access_token', token);
     return Response.redirect(`${redirect}`);
   }
 
-  return new Response(JSON.stringify(tokenObj), { status: 400 });
+  return res;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
