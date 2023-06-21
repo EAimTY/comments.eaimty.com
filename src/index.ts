@@ -1,22 +1,31 @@
 export interface Env {
   REPO: string;
-  OAUTH_APP_CLIENT_ID: string;
-  OAUTH_APP_CLIENT_SECRET: string;
+  GITHUB_APP_CLIENT_ID: string;
+  GITHUB_APP_CLIENT_SECRET: string;
 }
 
 async function login(req: Request, env: Env): Promise<Response> {
   const url = new URL(req.url);
 
-  const redirectUri = url.searchParams.get('redirect_uri');
-  if (redirectUri === null) {
-    return new Response(JSON.stringify({ error: 'missing parameter \'redirect_uri\'' }), { status: 400 });
-  }
-
   const code = url.searchParams.get('code');
-  if (code === null) {
-    return Response.redirect(
-      `https://github.com/login/oauth/authorize?client_id=${env.OAUTH_APP_CLIENT_ID}&redirect_uri=${req.url}`,
-    );
+  const state = url.searchParams.get('state');
+
+  if (code === null || state === null) {
+    const redirectUri = url.searchParams.get('redirect_uri');
+    if (redirectUri) {
+      return Response.redirect(
+        `https://github.com/login/oauth/authorize?client_id=${env.GITHUB_APP_CLIENT_ID}&state=${redirectUri}`,
+      );
+    }
+
+    const status = 400;
+
+    const headers = new Headers();
+    headers.append('Content-Type', 'application/json');
+
+    const body = JSON.stringify({ error: 'missing parameter \'redirect_uri\'' });
+
+    return new Response(body, { status, headers });
   }
 
   const getTokenUrl = 'https://github.com/login/oauth/access_token';
@@ -26,15 +35,15 @@ async function login(req: Request, env: Env): Promise<Response> {
   headers.append('Accept', 'application/json');
 
   const body = new FormData();
-  body.append('client_id', env.OAUTH_APP_CLIENT_ID);
-  body.append('client_secret', env.OAUTH_APP_CLIENT_SECRET);
+  body.append('client_id', env.GITHUB_APP_CLIENT_ID);
+  body.append('client_secret', env.GITHUB_APP_CLIENT_SECRET);
   body.append('code', code);
 
   const res = fetch(getTokenUrl, { method, headers, body });
 
   if (await res.then((data) => data.status === 200)) {
     const token = await res.then((data) => data.json()).then((data) => data.access_token);
-    const redirect = new URL(redirectUri);
+    const redirect = new URL(state);
     redirect.searchParams.append('github_access_token', token);
     return Response.redirect(`${redirect}`);
   }
