@@ -2,7 +2,6 @@
   "name": "comments",
   "version": "0.0.0",
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20230518.0",
     "@typescript-eslint/eslint-plugin": "^5.59.11",
     "@typescript-eslint/parser": "^5.59.11",
     "eslint": "^8.43.0",

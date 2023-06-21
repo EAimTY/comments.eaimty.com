@@ -46,6 +46,28 @@ async function login(req: Request, env: Env): Promise<Response> {
   return new Response(JSON.stringify(tokenObj), { status: 400 });
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function getUserInfo(req: Request, _env: Env): Promise<Response> {
+  const url = new URL(req.url);
+
+  const token = url.searchParams.get('github_access_token');
+  if (token === null) {
+    return new Response(JSON.stringify({ error: 'missing parameter \'github_access_token\'' }), { status: 400 });
+  }
+
+  const getUserInfoUrl = 'https://api.github.com/user';
+
+  const method = 'GET';
+
+  const headers = new Headers();
+  headers.append('Accept', 'application/vnd.github+json');
+  headers.append('User-Agent', 'comments.eaimty.com');
+  headers.append('X-GitHub-Api-Version', '2022-11-28');
+  headers.append('Authorization', `Bearer ${token}`);
+
+  return fetch(getUserInfoUrl, { method, headers });
+}
+
 async function getComments(req: Request, env: Env): Promise<Response> {
   const url = new URL(req.url);
 
@@ -107,6 +129,9 @@ export default {
     switch (true) {
       case method === 'GET' && path === '/login':
         return login(req, env);
+
+      case method === 'GET' && path === '/userinfo':
+        return getUserInfo(req, env);
 
       case method === 'GET' && path === '/comments':
         return getComments(req, env);
