@@ -81,10 +81,6 @@ async function getComments(req: Request, env: Env): Promise<Response> {
     return new Response(JSON.stringify({ error: 'missing parameter \'issue_id\'' }), { status: 400 });
   }
 
-  const getCommentsUrl = `https://api.github.com/repos/${env.REPO}/issues/${issueId}/comments`;
-
-  const method = 'GET';
-
   const headers = new Headers();
   headers.append('Accept', 'application/vnd.github+json');
   headers.append('User-Agent', 'comments.eaimty.com');
@@ -95,7 +91,20 @@ async function getComments(req: Request, env: Env): Promise<Response> {
     headers.append('Authorization', `Bearer ${token}`);
   }
 
-  return fetch(getCommentsUrl, { method, headers });
+  const getIssueInfoUrl = `https://api.github.com/repos/${env.REPO}/issues/${issueId}`;
+  const issueInfoResp = await fetch(getIssueInfoUrl, { method: 'GET', headers });
+  const commentCnt = await issueInfoResp.json().then((data) => data.comments);
+  const pageCnt = Math.ceil(commentCnt / 100);
+
+  const commentPromises = [...Array(pageCnt).keys()].map(async (i) => {
+    const getCommentsUrl = `https://api.github.com/repos/${env.REPO}/issues/${issueId}/comments?per_page=100&page=${i + 1}`;
+    return fetch(getCommentsUrl, { method: 'GET', headers }).then((data) => data.json());
+  });
+
+  const comments = await Promise.all(commentPromises).then((data) => data.flat());
+  const body = JSON.stringify(comments);
+
+  return new Response(body, { headers: issueInfoResp.headers });
 }
 
 async function postComment(req: Request, env: Env): Promise<Response> {
