@@ -93,6 +93,11 @@ async function getComments(req: Request, env: Env): Promise<Response> {
 
   const getIssueInfoUrl = `https://api.github.com/repos/${env.REPO}/issues/${issueId}`;
   const issueInfoResp = await fetch(getIssueInfoUrl, { method: 'GET', headers });
+
+  if (issueInfoResp.status !== 200) {
+    return issueInfoResp;
+  }
+
   const commentCnt = await issueInfoResp.json().then((data) => data.comments);
   const pageCnt = Math.ceil(commentCnt / 100);
 
